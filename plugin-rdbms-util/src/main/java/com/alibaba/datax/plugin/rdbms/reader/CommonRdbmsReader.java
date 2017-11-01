@@ -358,7 +358,7 @@ public class CommonRdbmsReader {
         public void startRead(Configuration readerSliceConfig,
                               RecordSender recordSender,
                               TaskPluginCollector taskPluginCollector, int fetchSize) {
-            
+
             String queryType = readerSliceConfig.getString(Key.QUERY_TYPE);
 
             if(Key.QUERY_SNAPSHOT_TYPE.equals(queryType)){
