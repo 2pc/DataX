@@ -27,13 +27,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.sql.Types;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.sql.*;
+import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -169,7 +164,8 @@ public class CommonRdbmsReader {
 
         }
 
-        public void startRead(Configuration readerSliceConfig,
+        // see
+        public void startReadSnapShot(Configuration readerSliceConfig,
                               RecordSender recordSender,
                               TaskPluginCollector taskPluginCollector, int fetchSize) {
             String querySql = readerSliceConfig.getString(Key.QUERY_SQL);
@@ -189,38 +185,232 @@ public class CommonRdbmsReader {
             DBUtil.dealWithSessionConfig(conn, readerSliceConfig,
                     this.dataBaseType, basicMsg);
 
-            int columnNumber = 0;
             ResultSet rs = null;
+            Statement stmt = null;
+            boolean tableLocked =false;
             try {
-                rs = DBUtil.query(conn, querySql, fetchSize);
-                queryPerfRecord.end();
+                conn.setAutoCommit(false);
+                stmt = conn.createStatement();
+                //Step 0: disabling autocommit and enabling repeatable read transactions
+                stmt.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
+                //Step 1: start transaction with consistent snapshot
+                stmt.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+                //Step 2: flush and obtain global read lock to prevent writes to database
+                stmt.execute("FLUSH TABLES WITH READ LOCK");
+                boolean  isLocked =true;
 
-                ResultSetMetaData metaData = rs.getMetaData();
-                columnNumber = metaData.getColumnCount();
+                //Step 3
+                if(isLocked){
+                    rs = stmt.executeQuery("SHOW MASTER STATUS");
 
-                //这个统计干净的result_Next时间
-                PerfRecord allResultPerfRecord = new PerfRecord(taskGroupId, taskId, PerfRecord.PHASE.RESULT_NEXT_ALL);
-                allResultPerfRecord.start();
+                    while (rs.next()) {
+                        String binlogFilename = rs.getString(1);
+                        long binlogPosition = rs.getLong(2);
+                        System.out.println("binlogFilename: "+binlogFilename+ " binlogPosition: "+binlogPosition);
+                        if (rs.getMetaData().getColumnCount() > 4) {
+                            String gtidSet = rs.getString(5);// GTID set, may be null, blank, or contain a GTID set
+                            System.out.println("gtidSet: " +gtidSet);
+                        }
 
-                long rsNextUsedTime = 0;
-                long lastTime = System.nanoTime();
-                while (rs.next()) {
-                    rsNextUsedTime += (System.nanoTime() - lastTime);
-                    this.transportOneRecord(recordSender, rs,
-                            metaData, columnNumber, mandatoryEncoding, taskPluginCollector);
-                    lastTime = System.nanoTime();
+                    }
+                }
+                // -------------------
+                // READ DATABASE NAMES
+                // -------------------
+                // Get the list of databases ...
+                final List<String> databaseNames = new ArrayList<String>();
+                rs = stmt.executeQuery("SHOW DATABASES");
+                while(rs.next()){
+                    databaseNames.add(rs.getString(1));
+                }
+                System.out.print("READ DATABASE NAMES 8");
+                List<TableId> tableIds = new ArrayList<TableId>();
+                final Map<String, List<TableId>> tableIdsByDbName = new HashMap<String, List<TableId>>();
+                final Set<String> readableDatabaseNames = new HashSet<String>();
+                for (String dbName : databaseNames) {
+
+                    System.out.println("READ DATABASE NAMES "+dbName);
+
+                    String sql = "SHOW FULL TABLES IN " + quote(dbName) + " where Table_Type = 'BASE TABLE'";
+                    if(!dbName.equals("oml_backup")){
+                        rs = stmt.executeQuery(sql);
+                        System.out.println("READ DATABASE NAMES "+dbName+"   end");
+                    }
+
+
+                    while (rs.next()){
+                        TableId tableId = new TableId(dbName, rs.getString(1));
+                        tableIds.add(tableId);
+                        List<TableId> l= new ArrayList<TableId>();
+                        l.add(tableId);
+                        tableIdsByDbName.putIfAbsent(dbName, l);
+
+                    }
+
+                    readableDatabaseNames.add(dbName);
                 }
 
-                allResultPerfRecord.end(rsNextUsedTime);
-                //目前大盘是依赖这个打印，而之前这个Finish read record是包含了sql查询和result next的全部时间
-                LOG.info("Finished read record by Sql: [{}\n] {}.",
-                        querySql, basicMsg);
 
-            }catch (Exception e) {
-                throw RdbmsException.asQueryException(this.dataBaseType, e, querySql, table, username);
-            } finally {
-                DBUtil.closeDBResources(null, conn);
+
+                boolean userHasPrivileges = false ;
+
+                //LOCK TABLES and READ BINLOG POSITION
+                if(!isLocked){
+                    rs = stmt.executeQuery("SHOW GRANTS FOR CURRENT_USER");
+                    while(rs.next()){
+                        String grants = rs.getString(1);
+                        if (grants.contains("ALL") || grants.contains("LOCK TABLES".toUpperCase())) {
+                            System.out.println("GRANTS ok ");
+                            userHasPrivileges=true;
+                        }
+                    }
+
+                }
+                System.out.print("FLUSH TABLES WITH READ LOCK");
+                StringBuilder allTables = new StringBuilder("FLUSH TABLES ");
+                for (TableId tableId : tableIds) {
+                    allTables.append(tableId.getCatalogName()).append(".").append(tableId.getTableName()).append(",");
+                }
+
+                allTables.subSequence(0, allTables.length()-1);
+                allTables.append(" WITH READ LOCK");
+                System.out.print("FLUSH TABLES WITH READ LOCK2: "+allTables);
+
+                try{
+                    stmt.execute(allTables.toString());
+                }catch (Exception e){
+                    System.out.println(e);
+                }
+
+                isLocked =true;
+                tableLocked =true;
+                System.out.print("before SHOW MASTER STATUS");
+
+                rs = stmt.executeQuery("SHOW MASTER STATUS");
+                System.out.print("SHOW MASTER STATUS");
+
+                while (rs.next()) {
+                    String binlogFilename = rs.getString(1);
+                    long binlogPosition = rs.getLong(2);
+                    System.out.println("binlogFilename: "+binlogFilename+ " binlogPosition: "+binlogPosition);
+                    if (rs.getMetaData().getColumnCount() > 4) {
+                        String gtidSet = rs.getString(5);// GTID set, may be null, blank, or contain a GTID set
+                        System.out.println("gtidSet: " +gtidSet);
+                    }
+
+                }
+
+                // STEP 7
+                if(isLocked){
+                    if(tableLocked){
+
+                    }else{
+                        String  sql = "UNLOCK TABLES";
+                        stmt.execute(sql);
+                    }
+
+                }
+
+                // STEP 8
+
+                System.out.print("STEP 8");
+
+                Iterator<TableId> tableIdIter = tableIds.iterator();
+
+                stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+                stmt.setFetchSize(Integer.MIN_VALUE);
+
+
+                while (tableIdIter.hasNext()) {
+                    TableId  tableId = tableIdIter.next();
+                    String sql = "USE " + quote(tableId.getCatalogName()) + ";";
+                    //stmt.execute(sql);
+
+                    rs = stmt.executeQuery("SELECT * FROM " + quote(tableId));
+
+                    ResultSetMetaData metaData = rs.getMetaData();
+                    int columnNumber = metaData.getColumnCount();
+                    while(rs.next()){
+
+                        this.transportOneRecord(recordSender,rs,rs.getMetaData(),rs.getMetaData().getColumnCount(),mandatoryEncoding,taskPluginCollector);
+                        //System.out.println(transportOneRecord(rs, rs.getMetaData(), columnNumber, "utf-8"));
+                    }
+                }
+
+                System.out.println("end ##################");
+
+
+            }catch (SQLException sQLException){
+
             }
+
+
+        }
+
+        private  String quote(String dbName) {
+            return "`" + dbName + "`";
+        }
+
+        protected  String quote(TableId id) {
+            return quote(id.getCatalogName()) + "." + quote(id.getTableName());
+        }
+
+
+        public void startRead(Configuration readerSliceConfig,
+                              RecordSender recordSender,
+                              TaskPluginCollector taskPluginCollector, int fetchSize) {
+
+            this.startReadSnapShot(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+
+//            String querySql = readerSliceConfig.getString(Key.QUERY_SQL);
+//            String table = readerSliceConfig.getString(Key.TABLE);
+//
+//            PerfTrace.getInstance().addTaskDetails(taskId, table + "," + basicMsg);
+//
+//            LOG.info("Begin to read record by Sql: [{}\n] {}.",
+//                    querySql, basicMsg);
+//            PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
+//            queryPerfRecord.start();
+//
+//            Connection conn = DBUtil.getConnection(this.dataBaseType, jdbcUrl,
+//                    username, password);
+//
+//            // session config .etc related
+//            DBUtil.dealWithSessionConfig(conn, readerSliceConfig,
+//                    this.dataBaseType, basicMsg);
+//
+//            int columnNumber = 0;
+//            ResultSet rs = null;
+//            try {
+//                rs = DBUtil.query(conn, querySql, fetchSize);
+//                queryPerfRecord.end();
+//
+//                ResultSetMetaData metaData = rs.getMetaData();
+//                columnNumber = metaData.getColumnCount();
+//
+//                //这个统计干净的result_Next时间
+//                PerfRecord allResultPerfRecord = new PerfRecord(taskGroupId, taskId, PerfRecord.PHASE.RESULT_NEXT_ALL);
+//                allResultPerfRecord.start();
+//
+//                long rsNextUsedTime = 0;
+//                long lastTime = System.nanoTime();
+//                while (rs.next()) {
+//                    rsNextUsedTime += (System.nanoTime() - lastTime);
+//                    this.transportOneRecord(recordSender, rs,
+//                            metaData, columnNumber, mandatoryEncoding, taskPluginCollector);
+//                    lastTime = System.nanoTime();
+//                }
+//
+//                allResultPerfRecord.end(rsNextUsedTime);
+//                //目前大盘是依赖这个打印，而之前这个Finish read record是包含了sql查询和result next的全部时间
+//                LOG.info("Finished read record by Sql: [{}\n] {}.",
+//                        querySql, basicMsg);
+//
+//            }catch (Exception e) {
+//                throw RdbmsException.asQueryException(this.dataBaseType, e, querySql, table, username);
+//            } finally {
+//                DBUtil.closeDBResources(null, conn);
+//            }
         }
 
         public void post(Configuration originalConfig) {
