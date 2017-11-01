@@ -165,7 +165,7 @@ public class CommonRdbmsReader {
         }
 
         // see
-        public void startReadSnapShot(Configuration readerSliceConfig,
+        public void startSnapShotRead(Configuration readerSliceConfig,
                               RecordSender recordSender,
                               TaskPluginCollector taskPluginCollector, int fetchSize) {
             String querySql = readerSliceConfig.getString(Key.QUERY_SQL);
@@ -355,62 +355,72 @@ public class CommonRdbmsReader {
             return quote(id.getCatalogName()) + "." + quote(id.getTableName());
         }
 
-
         public void startRead(Configuration readerSliceConfig,
                               RecordSender recordSender,
                               TaskPluginCollector taskPluginCollector, int fetchSize) {
+            
+            String queryType = readerSliceConfig.getString(Key.QUERY_TYPE);
 
-            this.startReadSnapShot(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+            if(Key.QUERY_SNAPSHOT_TYPE.equals(queryType)){
+                startSnapShotRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+            }else{
+                startJdbcSqlRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+            }
+        }
 
-//            String querySql = readerSliceConfig.getString(Key.QUERY_SQL);
-//            String table = readerSliceConfig.getString(Key.TABLE);
-//
-//            PerfTrace.getInstance().addTaskDetails(taskId, table + "," + basicMsg);
-//
-//            LOG.info("Begin to read record by Sql: [{}\n] {}.",
-//                    querySql, basicMsg);
-//            PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
-//            queryPerfRecord.start();
-//
-//            Connection conn = DBUtil.getConnection(this.dataBaseType, jdbcUrl,
-//                    username, password);
-//
-//            // session config .etc related
-//            DBUtil.dealWithSessionConfig(conn, readerSliceConfig,
-//                    this.dataBaseType, basicMsg);
-//
-//            int columnNumber = 0;
-//            ResultSet rs = null;
-//            try {
-//                rs = DBUtil.query(conn, querySql, fetchSize);
-//                queryPerfRecord.end();
-//
-//                ResultSetMetaData metaData = rs.getMetaData();
-//                columnNumber = metaData.getColumnCount();
-//
-//                //这个统计干净的result_Next时间
-//                PerfRecord allResultPerfRecord = new PerfRecord(taskGroupId, taskId, PerfRecord.PHASE.RESULT_NEXT_ALL);
-//                allResultPerfRecord.start();
-//
-//                long rsNextUsedTime = 0;
-//                long lastTime = System.nanoTime();
-//                while (rs.next()) {
-//                    rsNextUsedTime += (System.nanoTime() - lastTime);
-//                    this.transportOneRecord(recordSender, rs,
-//                            metaData, columnNumber, mandatoryEncoding, taskPluginCollector);
-//                    lastTime = System.nanoTime();
-//                }
-//
-//                allResultPerfRecord.end(rsNextUsedTime);
-//                //目前大盘是依赖这个打印，而之前这个Finish read record是包含了sql查询和result next的全部时间
-//                LOG.info("Finished read record by Sql: [{}\n] {}.",
-//                        querySql, basicMsg);
-//
-//            }catch (Exception e) {
-//                throw RdbmsException.asQueryException(this.dataBaseType, e, querySql, table, username);
-//            } finally {
-//                DBUtil.closeDBResources(null, conn);
-//            }
+
+        public void startJdbcSqlRead(Configuration readerSliceConfig,
+                              RecordSender recordSender,
+                              TaskPluginCollector taskPluginCollector, int fetchSize) {
+            String querySql = readerSliceConfig.getString(Key.QUERY_SQL);
+            String table = readerSliceConfig.getString(Key.TABLE);
+
+            PerfTrace.getInstance().addTaskDetails(taskId, table + "," + basicMsg);
+
+            LOG.info("Begin to read record by Sql: [{}\n] {}.",
+                    querySql, basicMsg);
+            PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
+            queryPerfRecord.start();
+
+            Connection conn = DBUtil.getConnection(this.dataBaseType, jdbcUrl,
+                    username, password);
+
+            // session config .etc related
+            DBUtil.dealWithSessionConfig(conn, readerSliceConfig,
+                    this.dataBaseType, basicMsg);
+
+            int columnNumber = 0;
+            ResultSet rs = null;
+            try {
+                rs = DBUtil.query(conn, querySql, fetchSize);
+                queryPerfRecord.end();
+
+                ResultSetMetaData metaData = rs.getMetaData();
+                columnNumber = metaData.getColumnCount();
+
+                //这个统计干净的result_Next时间
+                PerfRecord allResultPerfRecord = new PerfRecord(taskGroupId, taskId, PerfRecord.PHASE.RESULT_NEXT_ALL);
+                allResultPerfRecord.start();
+
+                long rsNextUsedTime = 0;
+                long lastTime = System.nanoTime();
+                while (rs.next()) {
+                    rsNextUsedTime += (System.nanoTime() - lastTime);
+                    this.transportOneRecord(recordSender, rs,
+                            metaData, columnNumber, mandatoryEncoding, taskPluginCollector);
+                    lastTime = System.nanoTime();
+                }
+
+                allResultPerfRecord.end(rsNextUsedTime);
+                //目前大盘是依赖这个打印，而之前这个Finish read record是包含了sql查询和result next的全部时间
+                LOG.info("Finished read record by Sql: [{}\n] {}.",
+                        querySql, basicMsg);
+
+            }catch (Exception e) {
+                throw RdbmsException.asQueryException(this.dataBaseType, e, querySql, table, username);
+            } finally {
+                DBUtil.closeDBResources(null, conn);
+            }
         }
 
         public void post(Configuration originalConfig) {

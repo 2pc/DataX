@@ -46,5 +46,9 @@ public final class Key {
 
     public final static String DRYRUN = "dryRun";
 
+    public final static String QUERY_TYPE = "queryType";
+
+    public final static String QUERY_SNAPSHOT_TYPE = "snapshot";
+
 
 }
