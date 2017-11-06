@@ -27,6 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.sql.*;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -187,35 +188,44 @@ public class CommonRdbmsReader {
 
             ResultSet rs = null;
             Statement stmt = null;
+            boolean isLocked =false;
             boolean tableLocked =false;
             try {
                 conn.setAutoCommit(false);
                 stmt = conn.createStatement();
                 //Step 0: disabling autocommit and enabling repeatable read transactions
                 stmt.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ");
-                //Step 1: start transaction with consistent snapshot
-                stmt.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT");
-                //Step 2: flush and obtain global read lock to prevent writes to database
-                stmt.execute("FLUSH TABLES WITH READ LOCK");
-                boolean  isLocked =true;
 
-                //Step 3
+                try{
+                    //Step 1: flush and obtain global read lock to prevent writes to database
+                    stmt.execute("FLUSH TABLES WITH READ LOCK");
+                    isLocked =true;
+
+                }catch (SQLException sQLException1){
+
+                }
+
+
+                //Step 2: start transaction with consistent snapshot
+                stmt.execute("START TRANSACTION WITH CONSISTENT SNAPSHOT");
+
+                //Step 3 readBinlogPosition
                 if(isLocked){
                     rs = stmt.executeQuery("SHOW MASTER STATUS");
 
                     while (rs.next()) {
                         String binlogFilename = rs.getString(1);
                         long binlogPosition = rs.getLong(2);
-                        System.out.println("binlogFilename: "+binlogFilename+ " binlogPosition: "+binlogPosition);
+                        LOG.info("binlogFilename: "+binlogFilename+ " binlogPosition: "+binlogPosition);
                         if (rs.getMetaData().getColumnCount() > 4) {
                             String gtidSet = rs.getString(5);// GTID set, may be null, blank, or contain a GTID set
-                            System.out.println("gtidSet: " +gtidSet);
+                            LOG.info("gtidSet: " +gtidSet);
                         }
 
                     }
                 }
                 // -------------------
-                // READ DATABASE NAMES
+                // Step 4 READ DATABASE NAMES
                 // -------------------
                 // Get the list of databases ...
                 final List<String> databaseNames = new ArrayList<String>();
@@ -227,6 +237,12 @@ public class CommonRdbmsReader {
                 List<TableId> tableIds = new ArrayList<TableId>();
                 final Map<String, List<TableId>> tableIdsByDbName = new HashMap<String, List<TableId>>();
                 final Set<String> readableDatabaseNames = new HashSet<String>();
+
+
+                // ----------------
+                // READ TABLE NAMES
+                // ----------------
+
                 for (String dbName : databaseNames) {
 
                     System.out.println("READ DATABASE NAMES "+dbName);
@@ -236,7 +252,6 @@ public class CommonRdbmsReader {
                         rs = stmt.executeQuery(sql);
                         System.out.println("READ DATABASE NAMES "+dbName+"   end");
                     }
-
 
                     while (rs.next()){
                         TableId tableId = new TableId(dbName, rs.getString(1));
@@ -266,6 +281,15 @@ public class CommonRdbmsReader {
                     }
 
                 }
+
+                if(!userHasPrivileges){
+                    throw new IOException("user Has Privileges");
+                }
+
+                // ------------------------------------
+                // LOCK TABLES and READ BINLOG POSITION
+                // ------------------------------------
+
                 System.out.print("FLUSH TABLES WITH READ LOCK");
                 StringBuilder allTables = new StringBuilder("FLUSH TABLES ");
                 for (TableId tableId : tableIds) {
@@ -300,6 +324,11 @@ public class CommonRdbmsReader {
 
                 }
 
+                // ------
+                // STEP 6  schema
+                // ------
+
+
                 // STEP 7
                 if(isLocked){
                     if(tableLocked){
@@ -312,7 +341,6 @@ public class CommonRdbmsReader {
                 }
 
                 // STEP 8
-
                 System.out.print("STEP 8");
 
                 Iterator<TableId> tableIdIter = tableIds.iterator();
@@ -326,13 +354,13 @@ public class CommonRdbmsReader {
                     String sql = "USE " + quote(tableId.getCatalogName()) + ";";
                     //stmt.execute(sql);
 
-                    rs = stmt.executeQuery("SELECT * FROM " + quote(tableId));
-
+                   // rs = stmt.executeQuery("SELECT * FROM " + quote(tableId));
+                    rs = stmt.executeQuery(querySql);
                     ResultSetMetaData metaData = rs.getMetaData();
                     int columnNumber = metaData.getColumnCount();
                     while(rs.next()){
 
-                        this.transportOneRecord(recordSender,rs,rs.getMetaData(),rs.getMetaData().getColumnCount(),mandatoryEncoding,taskPluginCollector);
+                        this.transportOneRecord(recordSender,rs,rs.getMetaData(),columnNumber,mandatoryEncoding,taskPluginCollector);
                         //System.out.println(transportOneRecord(rs, rs.getMetaData(), columnNumber, "utf-8"));
                     }
                 }
@@ -361,11 +389,11 @@ public class CommonRdbmsReader {
 
             String queryType = readerSliceConfig.getString(Key.QUERY_TYPE);
 
-            if(Key.QUERY_SNAPSHOT_TYPE.equals(queryType)){
+           // if(Key.QUERY_SNAPSHOT_TYPE.equals(queryType)){
                 startSnapShotRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
-            }else{
-                startJdbcSqlRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
-            }
+//            }else{
+//                startJdbcSqlRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+//            }
         }
 
 
