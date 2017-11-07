@@ -68,7 +68,10 @@
         <module>hbase11xreader</module>
         <module>hbase094xreader</module>
 -->
+        <module>kafkareader</module>
+
         <!-- writer -->
+        <module>kafkawriter</module>
         <module>mysqlwriter</module>
 <!--
         <module>drdswriter</module>

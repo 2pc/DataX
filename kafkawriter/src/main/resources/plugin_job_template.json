@@ -1,0 +1,16 @@
+{
+    "name": "kafkawriter",
+    "parameter": {
+      "bootstrapServers":"",
+      "acks":"",
+      "compression":"",
+      "keySerializer":"",
+      "valueSerializer":"",
+      "clientId":"",
+      "topics":"",
+      "sendBufferBytes":1048576,
+      "attributeNames":"",
+      "isAsync":true,
+      "isRetry":false
+    }
+}

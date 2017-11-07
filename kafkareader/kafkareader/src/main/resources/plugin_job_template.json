@@ -1,0 +1,13 @@
+{
+    "name": "kafkareader",
+    "parameter": {
+      "autoCommit": true,
+      "bootstrapServers":"",
+      "clientId": "",
+      "groupId": "",
+      "keySerializer": "",
+      "topics": "",
+      "valueSerializer": ""
+
+    }
+}
