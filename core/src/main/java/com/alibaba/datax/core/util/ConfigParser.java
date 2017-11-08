@@ -33,7 +33,7 @@ public final class ConfigParser {
                 CoreConstant.DATAX_JOB_CONTENT_READER_NAME);
         String writerPluginName = configuration.getString(
                 CoreConstant.DATAX_JOB_CONTENT_WRITER_NAME);
-
+        LOG.info("readerPluginName: "+readerPluginName+" writerPluginName: "+writerPluginName);
         String preHandlerName = configuration.getString(
                 CoreConstant.DATAX_JOB_PREHANDLER_PLUGINNAME);
 

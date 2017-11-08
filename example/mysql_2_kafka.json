@@ -1,0 +1,53 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1
+      },
+      "errorLimit": {
+        "record": 0,
+        "percentage": 0.02
+      }
+    },
+    "content": [
+      {
+        "reader": {
+          "name": "mysqlreader",
+          "parameter": {
+            "username": "canal",
+            "password": "canal",
+            "column": [
+              '*'
+            ],
+            "splitPk": "X",
+            "connection": [
+              {
+                "table": [
+                  "c002_acct_payment_schedule_0818"
+                ],
+                "database": [
+                  "test"
+                ],
+                "jdbcUrl": [
+                  "jdbc:mysql://172.28.3.26:3306/oml"
+                ]
+              }
+            ]
+          }
+        },
+        "writer": {
+          "name": "kafkareader",
+          "parameter": {
+            "autoCommit": true,
+            "bootstrapServers": "172.28.3.169:9092",
+            "clientId": "233333",
+            "groupId": "34444444",
+            "keySerializer": "",
+            "topics": "test5",
+            "valueSerializer": ""
+          }
+        }
+      }
+    ]
+  }
+}

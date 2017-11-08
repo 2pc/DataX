@@ -1,4 +1,4 @@
-package com.alibaba.datax.plugin.reader.kafkareader;
+package com.alibaba.datax.plugin.writer.kafkawriter;
 
 /**
  * Created by quchuanyuan on 2017/7/17.

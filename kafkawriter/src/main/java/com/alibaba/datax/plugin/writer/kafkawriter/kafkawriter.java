@@ -1,4 +1,4 @@
-package com.alibaba.datax.plugin.reader.kafkareader;
+package com.alibaba.datax.plugin.writer.kafkawriter;
 
 import com.alibaba.datax.common.element.Record;
 import com.alibaba.datax.common.exception.DataXException;
@@ -16,7 +16,7 @@ import java.util.concurrent.ExecutionException;
 /**
  * Created by quchuanyuan on 2017/7/17.
  */
-public class kafkawriter {
+public class KafkaWriter {
 
     public static class Job extends Writer.Job {
         private static final Logger LOG = LoggerFactory.getLogger(Job.class);

@@ -283,7 +283,7 @@ public class CommonRdbmsReader {
                 }
 
                 if(!userHasPrivileges){
-                    throw new IOException("user Has Privileges");
+              //      throw new IOException("user Has Privileges");
                 }
 
                 // ------------------------------------
