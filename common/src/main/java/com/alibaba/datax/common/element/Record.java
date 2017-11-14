@@ -19,5 +19,14 @@ public interface Record {
 	public int getByteSize();
 
 	public int getMemorySize();
+	
+	public String getSchemaName();
+	
+	public void setSchemaName(String schemaName);
+	
+	public String getTableName();
+	
+	public void setTableName(String tableName);
+	
 
 }

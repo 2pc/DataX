@@ -39,13 +39,13 @@
           
             "name": "kafkawriter",
             "parameter": {
-              "bootstrapServers": "172.28.3.169:9092",
+              "bootstrapServers": "172.28.3.158:9092",
               "acks": "1",
               "compression": "",
               "keySerializer": "",
               "valueSerializer": "",
               "clientId": "",
-              "topics": "",
+              "topics": "test",
               "sendBufferBytes": 1048576,
               "attributeNames": "",
               "isAsync": true,

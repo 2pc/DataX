@@ -23,6 +23,10 @@ public class DefaultRecord implements Record {
 	private List<Column> columns;
 
 	private int byteSize;
+	
+	private String schemaName;
+	
+	private String tableName;
 
 	// 首先是Record本身需要的内存
 	private int memorySize = ClassSize.DefaultRecordHead;
@@ -114,6 +118,26 @@ public class DefaultRecord implements Record {
 		while (needToExpand-- > 0) {
 			this.columns.add(null);
 		}
+	}
+
+	@Override
+	public String getSchemaName() {
+		return this.schemaName;
+	}
+
+	@Override
+	public void setSchemaName(String schemaName) {
+		this.schemaName = schemaName;
+	}
+
+	@Override
+	public String getTableName() {
+		return this.tableName;
+	}
+
+	@Override
+	public void setTableName(String tableName) {
+		this.tableName = tableName;
 	}
 
 }

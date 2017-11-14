@@ -178,7 +178,7 @@ public class CommonRdbmsReader {
                     querySql, basicMsg);
             PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
             queryPerfRecord.start();
-
+            LOG.info("end Begin to getConnection");
             Connection conn = DBUtil.getConnection(this.dataBaseType, jdbcUrl,
                     username, password);
 
@@ -233,7 +233,7 @@ public class CommonRdbmsReader {
                 while(rs.next()){
                     databaseNames.add(rs.getString(1));
                 }
-                System.out.print("READ DATABASE NAMES 8");
+                System.out.println("READ DATABASE NAMES 8");
                 List<TableId> tableIds = new ArrayList<TableId>();
                 final Map<String, List<TableId>> tableIdsByDbName = new HashMap<String, List<TableId>>();
                 final Set<String> readableDatabaseNames = new HashSet<String>();
@@ -274,6 +274,8 @@ public class CommonRdbmsReader {
                     rs = stmt.executeQuery("SHOW GRANTS FOR CURRENT_USER");
                     while(rs.next()){
                         String grants = rs.getString(1);
+                        LOG.info("grants###############" +grants);
+                        System.out.println("grants###############" +grants);
                         if (grants.contains("ALL") || grants.contains("LOCK TABLES".toUpperCase())) {
                             System.out.println("GRANTS ok ");
                             userHasPrivileges=true;
@@ -282,8 +284,11 @@ public class CommonRdbmsReader {
 
                 }
 
-                if(!userHasPrivileges){
+                if(!isLocked&&!userHasPrivileges){
               //      throw new IOException("user Has Privileges");
+                    throw DataXException
+                            .asDataXException(
+                                    DBUtilErrorCode.MYSQL_QUERY_SQL_ERROR,"user not HasPrivileges");
                 }
 
                 // ------------------------------------
@@ -296,7 +301,7 @@ public class CommonRdbmsReader {
                     allTables.append(tableId.getCatalogName()).append(".").append(tableId.getTableName()).append(",");
                 }
 
-                allTables.subSequence(0, allTables.length()-1);
+                allTables.subSequence(0, allTables.length()-2);
                 allTables.append(" WITH READ LOCK");
                 System.out.print("FLUSH TABLES WITH READ LOCK2: "+allTables);
 
@@ -351,17 +356,21 @@ public class CommonRdbmsReader {
 
                 while (tableIdIter.hasNext()) {
                     TableId  tableId = tableIdIter.next();
-                    String sql = "USE " + quote(tableId.getCatalogName()) + ";";
-                    //stmt.execute(sql);
-
-                   // rs = stmt.executeQuery("SELECT * FROM " + quote(tableId));
-                    rs = stmt.executeQuery(querySql);
-                    ResultSetMetaData metaData = rs.getMetaData();
-                    int columnNumber = metaData.getColumnCount();
-                    while(rs.next()){
-
-                        this.transportOneRecord(recordSender,rs,rs.getMetaData(),columnNumber,mandatoryEncoding,taskPluginCollector);
-                        //System.out.println(transportOneRecord(rs, rs.getMetaData(), columnNumber, "utf-8"));
+                    if("test".equals(tableId.getCatalogName())){
+	                    String sql = "USE " + quote(tableId.getCatalogName()) + ";";
+	                    //stmt.execute(sql);
+	                    String  sqlTmp = "SELECT * FROM " + quote(tableId);
+	                    rs = stmt.executeQuery(sqlTmp);
+	
+	                    System.out.println(sqlTmp);
+	                    //rs = stmt.executeQuery(querySql);
+	                    ResultSetMetaData metaData = rs.getMetaData();
+	                    int columnNumber = metaData.getColumnCount();
+	                    while(rs.next()){
+	
+	                        this.transportOneRecordWithSchema(recordSender,rs,rs.getMetaData(),columnNumber,mandatoryEncoding,taskPluginCollector,tableId);
+	                        //System.out.println(transportOneRecord(rs, rs.getMetaData(), columnNumber, "utf-8"));
+	                    }
                     }
                 }
 
@@ -466,9 +475,17 @@ public class CommonRdbmsReader {
             recordSender.sendToWriter(record);
             return record;
         }
+        protected Record transportOneRecordWithSchema(RecordSender recordSender, ResultSet rs,
+                                            ResultSetMetaData metaData, int columnNumber, String mandatoryEncoding,
+                                            TaskPluginCollector taskPluginCollector,TableId tableId) {
+            Record record = buildRecordWithSchema(recordSender,rs,metaData,columnNumber,mandatoryEncoding,taskPluginCollector,tableId);
+            recordSender.sendToWriter(record);
+            return record;
+        }
         protected Record buildRecord(RecordSender recordSender,ResultSet rs, ResultSetMetaData metaData, int columnNumber, String mandatoryEncoding,
         		TaskPluginCollector taskPluginCollector) {
         	Record record = recordSender.createRecord();
+
 
             try {
                 for (int i = 1; i <= columnNumber; i++) {
@@ -561,6 +578,119 @@ public class CommonRdbmsReader {
                                                 metaData.getColumnName(i),
                                                 metaData.getColumnType(i),
                                                 metaData.getColumnClassName(i)));
+                    }
+                }
+            } catch (Exception e) {
+                if (IS_DEBUG) {
+                    LOG.debug("read data " + record.toString()
+                            + " occur exception:", e);
+                }
+                //TODO 这里识别为脏数据靠谱吗？
+                taskPluginCollector.collectDirtyRecord(record, e);
+                if (e instanceof DataXException) {
+                    throw (DataXException) e;
+                }
+            }
+            return record;
+        }
+
+        protected Record buildRecordWithSchema(RecordSender recordSender,ResultSet rs, ResultSetMetaData metaData, int columnNumber, String mandatoryEncoding,
+                                     TaskPluginCollector taskPluginCollector,TableId tableId) {
+            Record record = recordSender.createRecord();
+            record.setSchemaName(tableId.getCatalogName());
+            record.setTableName(tableId.getTableName());
+
+            try {
+                for (int i = 1; i <= columnNumber; i++) {
+                    switch (metaData.getColumnType(i)) {
+
+                        case Types.CHAR:
+                        case Types.NCHAR:
+                        case Types.VARCHAR:
+                        case Types.LONGVARCHAR:
+                        case Types.NVARCHAR:
+                        case Types.LONGNVARCHAR:
+                            String rawData;
+                            if(StringUtils.isBlank(mandatoryEncoding)){
+                                rawData = rs.getString(i);
+                            }else{
+                                rawData = new String((rs.getBytes(i) == null ? EMPTY_CHAR_ARRAY :
+                                        rs.getBytes(i)), mandatoryEncoding);
+                            }
+                            record.addColumn(new StringColumn(rawData));
+                            break;
+
+                        case Types.CLOB:
+                        case Types.NCLOB:
+                            record.addColumn(new StringColumn(rs.getString(i)));
+                            break;
+
+                        case Types.SMALLINT:
+                        case Types.TINYINT:
+                        case Types.INTEGER:
+                        case Types.BIGINT:
+                            record.addColumn(new LongColumn(rs.getString(i)));
+                            break;
+
+                        case Types.NUMERIC:
+                        case Types.DECIMAL:
+                            record.addColumn(new DoubleColumn(rs.getString(i)));
+                            break;
+
+                        case Types.FLOAT:
+                        case Types.REAL:
+                        case Types.DOUBLE:
+                            record.addColumn(new DoubleColumn(rs.getString(i)));
+                            break;
+
+                        case Types.TIME:
+                            record.addColumn(new DateColumn(rs.getTime(i)));
+                            break;
+
+                        // for mysql bug, see http://bugs.mysql.com/bug.php?id=35115
+                        case Types.DATE:
+                            if (metaData.getColumnTypeName(i).equalsIgnoreCase("year")) {
+                                record.addColumn(new LongColumn(rs.getInt(i)));
+                            } else {
+                                record.addColumn(new DateColumn(rs.getDate(i)));
+                            }
+                            break;
+
+                        case Types.TIMESTAMP:
+                            record.addColumn(new DateColumn(rs.getTimestamp(i)));
+                            break;
+
+                        case Types.BINARY:
+                        case Types.VARBINARY:
+                        case Types.BLOB:
+                        case Types.LONGVARBINARY:
+                            record.addColumn(new BytesColumn(rs.getBytes(i)));
+                            break;
+
+                        // warn: bit(1) -> Types.BIT 可使用BoolColumn
+                        // warn: bit(>1) -> Types.VARBINARY 可使用BytesColumn
+                        case Types.BOOLEAN:
+                        case Types.BIT:
+                            record.addColumn(new BoolColumn(rs.getBoolean(i)));
+                            break;
+
+                        case Types.NULL:
+                            String stringData = null;
+                            if(rs.getObject(i) != null) {
+                                stringData = rs.getObject(i).toString();
+                            }
+                            record.addColumn(new StringColumn(stringData));
+                            break;
+
+                        default:
+                            throw DataXException
+                                    .asDataXException(
+                                            DBUtilErrorCode.UNSUPPORTED_TYPE,
+                                            String.format(
+                                                    "您的配置文件中的列配置信息有误. 因为DataX 不支持数据库读取这种字段类型. 字段名:[%s], 字段名称:[%s], 字段Java类型:[%s]. 请尝试使用数据库函数将其转换datax支持的类型 或者不同步该字段 .",
+                                                    metaData.getColumnName(i),
+                                                    metaData.getColumnType(i),
+                                                    metaData.getColumnClassName(i)));
                     }
                 }
             } catch (Exception e) {

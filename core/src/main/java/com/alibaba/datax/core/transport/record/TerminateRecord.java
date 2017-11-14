@@ -45,4 +45,28 @@ public class TerminateRecord implements Record {
 	public void setColumn(int i, Column column) {
 		return;
 	}
+
+	@Override
+	public String getSchemaName() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void setSchemaName(String schemaName) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public String getTableName() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	@Override
+	public void setTableName(String tableName) {
+		// TODO Auto-generated method stub
+		
+	}
 }

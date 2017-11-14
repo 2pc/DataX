@@ -142,9 +142,11 @@ public class KafkaWriter {
 
         @Override
         public void startWrite(RecordReceiver lineReceiver) {
+            System.out.println("kafka###############");
             List<Record> writerBuffer = new ArrayList<Record>(this.sendBufferBytes);
             Record record = null;
             while ((record = lineReceiver.getFromReader()) != null) {
+                //System.out.println(record);
                 writerBuffer.add(record);
                 if (writerBuffer.size() >= this.sendBufferBytes) {
                     sendKafka(writerBuffer);
@@ -161,15 +163,19 @@ public class KafkaWriter {
         }
 
         private void sendKafka(List<Record> writerBuffer) {
+        	System.out.println("sendKafkasendKafkasendKafka");
             String key = clientIdConfig;
             String msg="";
             for (int w = 0, wlen = writerBuffer.size(); w < wlen; w++) {
+            	Record record = writerBuffer.get(w);
                 if(attributeNames!=null){
-                    msg=transformMsgRecordWithKey(writerBuffer.get(w));
+                    msg=transformMsgRecordWithKey(record);
                 }else{
-                    msg=transformMsgRecord(writerBuffer.get(w));
+                    msg=transformMsgRecord(record);
                 }
-
+                
+                String topic = record.getSchemaName()+"."+record.getTableName();
+                System.out.println("topic "+topic);
                 try {
                     if (isAsync) {
                         //异步
@@ -177,11 +183,14 @@ public class KafkaWriter {
                                 new MsgProducerCallback(System.currentTimeMillis(), key, msg));
                     } else {
                         //同步
-                        producer.send(new ProducerRecord<String, String>(this.topics, key, msg)).get();
+                        producer.send(new ProducerRecord<String, String>(topic, key, msg)).get();
+                        System.out.println("topic end "+topic);
                     }
                 } catch (InterruptedException e) {
+                	System.out.println("#### "+e.getMessage());
                     LOG.error(e.getMessage());
                 } catch (ExecutionException e) {
+                	System.out.println("#### "+e.getMessage());
                     LOG.error(e.getMessage());
                 }
             }
