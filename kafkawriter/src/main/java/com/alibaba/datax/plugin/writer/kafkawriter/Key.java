@@ -1,8 +1,6 @@
 package com.alibaba.datax.plugin.writer.kafkawriter;
 
-/**
- * Created by quchuanyuan on 2017/7/17.
- */
+
 public class Key {
     //kafka节点列表
     public static  final  String BOOTSTRAP_SERVERS="bootstrapServers";

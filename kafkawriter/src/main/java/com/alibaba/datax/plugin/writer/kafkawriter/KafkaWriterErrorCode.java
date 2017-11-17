@@ -2,9 +2,7 @@ package com.alibaba.datax.plugin.writer.kafkawriter;
 
 import com.alibaba.datax.common.spi.ErrorCode;
 
-/**
- * Created by quchuanyuan on 2017/7/17.
- */
+
 public enum  KafkaWriterErrorCode implements ErrorCode {
     REQUIRED_VALUE("KafkaWriter-00", "您缺失了必须填写的参数值."),
     ILLEGAL_VALUE("KafkaWriter-01", "您填写的参数值不合法."),

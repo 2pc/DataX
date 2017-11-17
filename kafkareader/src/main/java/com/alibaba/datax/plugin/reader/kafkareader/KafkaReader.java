@@ -6,11 +6,14 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordSender;
 import com.alibaba.datax.common.spi.Reader;
 import com.alibaba.datax.common.util.Configuration;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.datax.core.transport.record.DefaultRecord;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -18,9 +21,7 @@ import java.util.List;
 import java.util.Properties;
 
 
-/**
- * Created by quchuanyuan on 2017/7/5.
- */
+
 public class KafkaReader extends Reader {
     public static class Job extends Reader.Job {
         private Configuration originalConfiguration = null;
@@ -125,6 +126,7 @@ public class KafkaReader extends Reader {
                 if (records.count() == 0) break;
                 for (ConsumerRecord<String, String> item : records) {
                     record = recordSender.createRecord();
+                    JSON.parseObject(item.value(),DefaultRecord.class);
                     record.addColumn(new StringColumn(item.value()));
                     recordSender.sendToWriter(record);
                     i++;

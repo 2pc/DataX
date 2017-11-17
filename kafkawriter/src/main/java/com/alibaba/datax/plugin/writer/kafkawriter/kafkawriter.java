@@ -5,6 +5,7 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordReceiver;
 import com.alibaba.datax.common.spi.Writer;
 import com.alibaba.datax.common.util.Configuration;
+import com.alibaba.fastjson.JSON;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.*;
 import org.slf4j.Logger;
@@ -13,10 +14,9 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 
-/**
- * Created by quchuanyuan on 2017/7/17.
- */
+
 public class KafkaWriter {
+	
 
     public static class Job extends Writer.Job {
         private static final Logger LOG = LoggerFactory.getLogger(Job.class);
@@ -116,29 +116,41 @@ public class KafkaWriter {
         @Override
         public void prepare() {
             Properties props = new Properties();
+//            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+//            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+//
+//            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+//            props.put(ProducerConfig.CLIENT_ID_CONFIG, clientIdConfig);
+//            if (StringUtils.isNotBlank(acks)) {
+//                props.put(ProducerConfig.ACKS_CONFIG, acks);
+//            }
+//            if (StringUtils.isNotBlank(compressionType)) {
+//                props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
+//            }
+//            if (StringUtils.isNotBlank(keySerializer)) {
+//                props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer);
+//            }
+//            if (StringUtils.isNotBlank(valueSerializer)) {
+//                props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
+//            }
+//            if (sendBufferBytes != 0) {
+//                props.put(ProducerConfig.SEND_BUFFER_CONFIG, sendBufferBytes);
+//            }
+//
+//            producer = new KafkaProducer<String, String>(props);
+
+            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "172.28.3.158:9092");
+//            props.put("retries", 1);
+//            props.put("batch.size", 16384);
+//            props.put("linger.ms", 1);
+//            props.put("buffer.memory", 33554432);
             props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
             props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-
-            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-            props.put(ProducerConfig.CLIENT_ID_CONFIG, clientIdConfig);
-            if (StringUtils.isNotBlank(acks)) {
-                props.put(ProducerConfig.ACKS_CONFIG, acks);
-            }
-            if (StringUtils.isNotBlank(compressionType)) {
-                props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
-            }
-            if (StringUtils.isNotBlank(keySerializer)) {
-                props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer);
-            }
-            if (StringUtils.isNotBlank(valueSerializer)) {
-                props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
-            }
-            if (sendBufferBytes != 0) {
-                props.put(ProducerConfig.SEND_BUFFER_CONFIG, sendBufferBytes);
-            }
-
             producer = new KafkaProducer<String, String>(props);
+
         }
+        
+
 
         @Override
         public void startWrite(RecordReceiver lineReceiver) {
@@ -158,12 +170,12 @@ public class KafkaWriter {
                 writerBuffer.clear();
             }
 
-            producer.flush();
-            producer.close();
+//            producer.flush();
+//            producer.close();
         }
 
         private void sendKafka(List<Record> writerBuffer) {
-        	System.out.println("sendKafkasendKafkasendKafka");
+        	//System.out.println("sendKafkasendKafkasendKafka"+writerBuffer.size());
             String key = clientIdConfig;
             String msg="";
             for (int w = 0, wlen = writerBuffer.size(); w < wlen; w++) {
@@ -173,18 +185,18 @@ public class KafkaWriter {
                 }else{
                     msg=transformMsgRecord(record);
                 }
-                
+                msg = JSON.toJSONString(record);
                 String topic = record.getSchemaName()+"."+record.getTableName();
-                System.out.println("topic "+topic);
+
                 try {
                     if (isAsync) {
                         //异步
-                        producer.send(new ProducerRecord<String, String>(this.topics, key, msg),
+                        producer.send(new ProducerRecord<String, String>(topic, null, msg),
                                 new MsgProducerCallback(System.currentTimeMillis(), key, msg));
                     } else {
                         //同步
-                        producer.send(new ProducerRecord<String, String>(topic, key, msg)).get();
-                        System.out.println("topic end "+topic);
+                        producer.send(new ProducerRecord<String, String>(topic, null, msg)).get();
+
                     }
                 } catch (InterruptedException e) {
                 	System.out.println("#### "+e.getMessage());
@@ -194,6 +206,8 @@ public class KafkaWriter {
                     LOG.error(e.getMessage());
                 }
             }
+
+//            producer.flush();
         }
 
         private static String  transformMsgRecord(Record record){

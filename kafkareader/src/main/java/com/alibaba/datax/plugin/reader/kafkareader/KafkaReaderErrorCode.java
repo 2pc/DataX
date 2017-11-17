@@ -3,9 +3,7 @@ package com.alibaba.datax.plugin.reader.kafkareader;
 
 import com.alibaba.datax.common.spi.ErrorCode;
 
-/**
- * Created by didi on 2017/7/17.
- */
+
 public enum  KafkaReaderErrorCode implements ErrorCode {
     REQUIRED_VALUE("KafkaReader-00", "您缺失了必须填写的参数值."),
     ILLEGAL_VALUE("KafkaReader-01", "您填写的参数值不合法."),

@@ -176,8 +176,7 @@ public class CommonRdbmsReader {
 
             LOG.info("Begin to read record by Sql: [{}\n] {}.",
                     querySql, basicMsg);
-            PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
-            queryPerfRecord.start();
+
             LOG.info("end Begin to getConnection");
             Connection conn = DBUtil.getConnection(this.dataBaseType, jdbcUrl,
                     username, password);
@@ -353,7 +352,8 @@ public class CommonRdbmsReader {
                 stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
                 stmt.setFetchSize(Integer.MIN_VALUE);
 
-
+                PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
+                queryPerfRecord.start();
                 while (tableIdIter.hasNext()) {
                     TableId  tableId = tableIdIter.next();
                     if("test".equals(tableId.getCatalogName())){

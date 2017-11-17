@@ -1,8 +1,6 @@
 package com.alibaba.datax.plugin.reader.kafkareader;
 
-/**
- * Created by chuanyuan_qu@163.com on 2017/7/17.
- */
+
 public class Key {
 
     //bootstrapServers列表

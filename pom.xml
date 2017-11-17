@@ -46,14 +46,16 @@
 
         <!-- reader -->
         <module>mysqlreader</module>
-<!--
-        <module>drdsreader</module>
-        <module>sqlserverreader</module>
-        <module>postgresqlreader</module>
-        <module>oraclereader</module>
-        <module>odpsreader</module>
-        <module>otsreader</module>
--->
+        <module>kafkareader</module>
+
+        <!--
+                <module>drdsreader</module>
+                <module>sqlserverreader</module>
+                <module>postgresqlreader</module>
+                <module>oraclereader</module>
+                <module>odpsreader</module>
+                <module>otsreader</module>
+        -->
 
         <!-- <module>otsstreamreader</module> -->
 <!--
@@ -68,11 +70,11 @@
         <module>hbase11xreader</module>
         <module>hbase094xreader</module>
 -->
-        <module>kafkareader</module>
 
         <!-- writer -->
-        <module>kafkawriter</module>
+
         <module>mysqlwriter</module>
+        <module>kafkawriter</module>
 <!--
         <module>drdswriter</module>
         <module>odpswriter</module>
