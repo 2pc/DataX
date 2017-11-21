@@ -1,5 +1,6 @@
 package com.alibaba.datax.plugin.reader.kafkareader;
 
+import com.alibaba.datax.common.element.Column;
 import com.alibaba.datax.common.element.Record;
 import com.alibaba.datax.common.element.StringColumn;
 import com.alibaba.datax.common.exception.DataXException;
@@ -8,18 +9,14 @@ import com.alibaba.datax.common.spi.Reader;
 import com.alibaba.datax.common.util.Configuration;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.datax.core.transport.record.DefaultRecord;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.*;
 
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-
+import java.util.*;
 
 
 public class KafkaReader extends Reader {
@@ -89,6 +86,18 @@ public class KafkaReader extends Reader {
             this.groupId=this.readerSliceConfiguration.getString(Key.GROUP_ID,null);
             this.autoCommit=this.readerSliceConfiguration.getBool(Key.AUTO_COMMIT,true);
             this.pollIntervalTime=this.readerSliceConfiguration.getInt(Key.POLL_INTERVAL_TIME,100);
+
+            Map<String,Column.Type> typeMap = new HashMap<String,Column.Type>();
+            typeMap.put("BAD", Column.Type.BAD);
+            typeMap.put("NULL", Column.Type.NULL);
+            typeMap.put("INT", Column.Type.INT);
+            typeMap.put("LONG", Column.Type.LONG);
+            typeMap.put("DOUBLE", Column.Type.DOUBLE);
+            typeMap.put("STRING", Column.Type.STRING);
+            typeMap.put("BOOL", Column.Type.BOOL);
+            typeMap.put("DATE", Column.Type.DATE);
+            typeMap.put("BYTES", Column.Type.BYTES);
+
         }
 
         @Override
@@ -112,9 +121,10 @@ public class KafkaReader extends Reader {
             properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,this.autoCommit);//手动提交
             properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,this.bootstrapServers);//指定broker地址，来找到group的coordinator
             properties.put(ConsumerConfig.GROUP_ID_CONFIG,this.groupId);//指定用户组
+            properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,"earliest");
             this.consumer = new KafkaConsumer<String, String>(properties);
             this.consumer.subscribe(Arrays.asList(this.topics));
-            shutdown();
+           // shutdown();
         }
 
         @Override
@@ -123,11 +133,10 @@ public class KafkaReader extends Reader {
             Record record = null;
             while (isRun) {
                 ConsumerRecords<String, String> records = consumer.poll(this.pollIntervalTime);//100ms 拉取一次数据
-                if (records.count() == 0) break;
+               // if (records.count() == 0) break;
                 for (ConsumerRecord<String, String> item : records) {
                     record = recordSender.createRecord();
-                    JSON.parseObject(item.value(),DefaultRecord.class);
-                    record.addColumn(new StringColumn(item.value()));
+                    record = (DefaultRecord)JSON.parse(item.value());
                     recordSender.sendToWriter(record);
                     i++;
                     if (i >= 100) {

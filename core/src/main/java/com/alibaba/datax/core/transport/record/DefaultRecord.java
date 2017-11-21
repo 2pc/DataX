@@ -28,6 +28,14 @@ public class DefaultRecord implements Record {
 	
 	private String tableName;
 
+	public List<Column> getColumns() {
+		return columns;
+	}
+
+	public void setColumns(List<Column> columns) {
+		this.columns = columns;
+	}
+
 	// 首先是Record本身需要的内存
 	private int memorySize = ClassSize.DefaultRecordHead;
 

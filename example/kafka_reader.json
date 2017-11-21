@@ -1,0 +1,47 @@
+{
+  "job": {
+    "setting": {
+      "speed": {
+        "channel": 1,
+        "record": "1000"
+      },
+      "errorLimit": {
+        "record": 0,
+        "percentage": 0.02
+      }
+    },
+    "content": [
+      {
+        "reader": {
+              "name": "kafkareader",
+    "parameter": {
+      "autoCommit": true,
+      "bootstrapServers":"172.28.3.158:9092",
+      "clientId": "c1",
+      "groupId": "g22rrr1",
+      "keySerializer": "",
+      "topics": "test.a010_1_user_base",
+      "valueSerializer": ""
+
+    }
+        },
+         "writer": {
+                    "name": "streamwriter",
+                    "parameter": {
+                        "print":true
+                    }
+                }
+        }
+      ]
+    },
+    "core": {
+        "transport": {
+            "channel": {
+                "speed": {
+                    "record": "20000"
+                }
+            }
+        }
+    }
+
+  }

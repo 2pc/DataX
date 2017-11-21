@@ -46,7 +46,7 @@
               "valueSerializer": "",
               "clientId": "",
               "topics": "test",
-              "sendBufferBytes": 1048576,
+              "sendBufferBytes": 1,
               "attributeNames": "",
               "isAsync": true,
               "isRetry": false

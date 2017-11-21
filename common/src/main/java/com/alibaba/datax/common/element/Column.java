@@ -36,15 +36,15 @@ public abstract class Column {
 		return this.byteSize;
 	}
 
-	protected void setType(Type type) {
+	public void setType(Type type) {
 		this.type = type;
 	}
 
-	protected void setRawData(Object rawData) {
+	public void setRawData(Object rawData) {
 		this.rawData = rawData;
 	}
 
-	protected void setByteSize(int byteSize) {
+	public void setByteSize(int byteSize) {
 		this.byteSize = byteSize;
 	}
 

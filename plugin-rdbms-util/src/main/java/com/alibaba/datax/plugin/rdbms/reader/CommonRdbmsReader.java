@@ -301,6 +301,7 @@ public class CommonRdbmsReader {
                 }
 
                 allTables.subSequence(0, allTables.length()-2);
+
                 allTables.append(" WITH READ LOCK");
                 System.out.print("FLUSH TABLES WITH READ LOCK2: "+allTables);
 

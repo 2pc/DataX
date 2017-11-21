@@ -5,11 +5,15 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordReceiver;
 import com.alibaba.datax.common.spi.Writer;
 import com.alibaba.datax.common.util.Configuration;
+import com.alibaba.datax.core.transport.record.DefaultRecord;
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+
 
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -116,36 +120,27 @@ public class KafkaWriter {
         @Override
         public void prepare() {
             Properties props = new Properties();
-//            props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-//            props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
-//
-//            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-//            props.put(ProducerConfig.CLIENT_ID_CONFIG, clientIdConfig);
-//            if (StringUtils.isNotBlank(acks)) {
-//                props.put(ProducerConfig.ACKS_CONFIG, acks);
-//            }
-//            if (StringUtils.isNotBlank(compressionType)) {
-//                props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
-//            }
-//            if (StringUtils.isNotBlank(keySerializer)) {
-//                props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer);
-//            }
-//            if (StringUtils.isNotBlank(valueSerializer)) {
-//                props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
-//            }
-//            if (sendBufferBytes != 0) {
-//                props.put(ProducerConfig.SEND_BUFFER_CONFIG, sendBufferBytes);
-//            }
-//
-//            producer = new KafkaProducer<String, String>(props);
-
-            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "172.28.3.158:9092");
-//            props.put("retries", 1);
-//            props.put("batch.size", 16384);
-//            props.put("linger.ms", 1);
-//            props.put("buffer.memory", 33554432);
             props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
             props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
+
+            props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+            props.put(ProducerConfig.CLIENT_ID_CONFIG, clientIdConfig);
+            if (StringUtils.isNotBlank(acks)) {
+                props.put(ProducerConfig.ACKS_CONFIG, acks);
+            }
+            if (StringUtils.isNotBlank(compressionType)) {
+                props.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, compressionType);
+            }
+            if (StringUtils.isNotBlank(keySerializer)) {
+                props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, keySerializer);
+            }
+            if (StringUtils.isNotBlank(valueSerializer)) {
+                props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, valueSerializer);
+            }
+            if (sendBufferBytes != 0) {
+                props.put(ProducerConfig.SEND_BUFFER_CONFIG, sendBufferBytes);
+            }
+
             producer = new KafkaProducer<String, String>(props);
 
         }
@@ -154,7 +149,6 @@ public class KafkaWriter {
 
         @Override
         public void startWrite(RecordReceiver lineReceiver) {
-            System.out.println("kafka###############");
             List<Record> writerBuffer = new ArrayList<Record>(this.sendBufferBytes);
             Record record = null;
             while ((record = lineReceiver.getFromReader()) != null) {
@@ -180,12 +174,13 @@ public class KafkaWriter {
             String msg="";
             for (int w = 0, wlen = writerBuffer.size(); w < wlen; w++) {
             	Record record = writerBuffer.get(w);
-                if(attributeNames!=null){
-                    msg=transformMsgRecordWithKey(record);
-                }else{
-                    msg=transformMsgRecord(record);
-                }
-                msg = JSON.toJSONString(record);
+//                if(attributeNames!=null){
+//                    msg=transformMsgRecordWithKey(record);
+//                }else{
+//                    msg=transformMsgRecord(record);
+//                }
+                msg = JSON.toJSONString(record, SerializerFeature.WriteClassName);
+
                 String topic = record.getSchemaName()+"."+record.getTableName();
 
                 try {

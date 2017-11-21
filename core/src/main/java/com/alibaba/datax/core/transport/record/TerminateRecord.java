@@ -3,6 +3,8 @@ package com.alibaba.datax.core.transport.record;
 import com.alibaba.datax.common.element.Column;
 import com.alibaba.datax.common.element.Record;
 
+import java.util.List;
+
 /**
  * 作为标示 生产者已经完成生产的标志
  * 
@@ -10,6 +12,10 @@ import com.alibaba.datax.common.element.Record;
 public class TerminateRecord implements Record {
 	private final static TerminateRecord SINGLE = new TerminateRecord();
 
+	public List<Column> getColumns(){
+		return null;
+	};
+	public void setColumns(List<Column> columns){} ;
 	private TerminateRecord() {
 	}
 

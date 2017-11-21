@@ -38,6 +38,20 @@ public class LongColumn extends Column {
 		}
 	}
 
+
+	@Override
+	public void setRawData(Object rawData) {
+		if(rawData instanceof  Long){
+			super.setRawData(null == rawData ? (BigInteger) null : BigInteger.valueOf((Long)rawData));
+		}else if(rawData instanceof  Integer){
+			super.setRawData(null == rawData ? (BigInteger) null : BigInteger.valueOf((Integer)rawData));
+		}else{
+			super.setRawData(rawData);
+		}
+
+		//super.setRawData(rawData);
+	}
+
 	public LongColumn(Long data) {
 		this(null == data ? (BigInteger) null : BigInteger.valueOf(data));
 	}
