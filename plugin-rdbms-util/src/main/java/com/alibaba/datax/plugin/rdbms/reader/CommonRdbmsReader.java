@@ -13,6 +13,7 @@ import com.alibaba.datax.common.plugin.TaskPluginCollector;
 import com.alibaba.datax.common.statistics.PerfRecord;
 import com.alibaba.datax.common.statistics.PerfTrace;
 import com.alibaba.datax.common.util.Configuration;
+import com.alibaba.datax.plugin.rdbms.commons.DBZRecordMarker;
 import com.alibaba.datax.plugin.rdbms.reader.util.OriginalConfPretreatmentUtil;
 import com.alibaba.datax.plugin.rdbms.reader.util.PreCheckTask;
 import com.alibaba.datax.plugin.rdbms.reader.util.ReaderSplitUtil;
@@ -21,8 +22,12 @@ import com.alibaba.datax.plugin.rdbms.util.DBUtil;
 import com.alibaba.datax.plugin.rdbms.util.DBUtilErrorCode;
 import com.alibaba.datax.plugin.rdbms.util.DataBaseType;
 import com.alibaba.datax.plugin.rdbms.util.RdbmsException;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 
+import io.debezium.connector.mysql.MySqlTaskContext;
+import io.debezium.connector.mysql.SnapshotReader2;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -162,6 +167,74 @@ public class CommonRdbmsReader {
             this.mandatoryEncoding = readerSliceConfig.getString(Key.MANDATORY_ENCODING, "");
 
             basicMsg = String.format("jdbcUrl:[%s]", this.jdbcUrl);
+
+        }
+
+
+        public  void startDBZRead(Configuration readerSliceConfig,
+                                  RecordSender recordSender,
+                                  TaskPluginCollector taskPluginCollector, int fetchSize){
+
+            LOG.error("readerSliceConfig: "+readerSliceConfig);
+            LOG.error("split_pk: "+readerSliceConfig.get(Key.SPLIT_PK));
+
+
+
+            LOG.error("internalObj.getString(Key.KAFKA_TOPIC): "+readerSliceConfig.getString(Key.KAFKA_TOPIC));
+
+
+            LOG.error("readerSliceConfig.getString(Key.KAFKA_TOPIC): "+readerSliceConfig.getString(Key.KAFKA_TOPIC));
+
+
+
+
+            Map<String, String> props = new HashMap<String,String>();
+            /*
+            *     public final static String NAME = "name";
+    public final static String CONNECTOR_CLASS = "connector.class";
+    public final static String DATABASE_HOST = "database.hostname";
+    public final static String DATABASE_PORT = "database.port";
+    public final static String DATABASE_USER = "database.user";
+    public final static String DATABASE_PASSWORD = "database.password";
+    public final static String DATABASE_SERVER_ID = "database.server.id";
+    public final static String DATABASE_SERVER_NAME = "database.server.name";
+    public final static String DATABASE_WHITELIST = "database.whitelist";
+    public final static String INCLUDE_SCHEMA_CHANGES = "include.schema.changes";
+    public final static String KAFKA_BOOTSTRAP_SERVERS = "database.history.kafka.bootstrap.servers";
+    public final static String KAFKA_TOPIC = "database.history.kafka.topic";*/
+            props.put(Key.NAME,readerSliceConfig.getString(Key.NAME));
+            props.put(Key.DBZ_CONNECTOR_CLASS,readerSliceConfig.getString(Key.CONNECTOR_CLASS));
+            props.put(Key.DBZ_DATABASE_HOST,readerSliceConfig.getString(Key.DATABASE_HOST));
+            props.put(Key.DBZ_DATABASE_PORT,readerSliceConfig.getString(Key.DATABASE_PORT));
+            props.put(Key.DBZ_DATABASE_USER,readerSliceConfig.getString(Key.DATABASE_USER));
+            props.put(Key.DBZ_DATABASE_PASSWORD,readerSliceConfig.getString(Key.DATABASE_PASSWORD));
+            props.put(Key.DBZ_DATABASE_SERVER_ID,readerSliceConfig.getString(Key.DATABASE_SERVER_ID));
+            props.put(Key.DBZ_DATABASE_SERVER_NAME,readerSliceConfig.getString(Key.DATABASE_SERVER_NAME));
+            props.put(Key.DBZ_DATABASE_WHITELIST,readerSliceConfig.getString(Key.DATABASE_WHITELIST));
+            props.put(Key.DBZ_INCLUDE_SCHEMA_CHANGES,readerSliceConfig.getString(Key.INCLUDE_SCHEMA_CHANGES));
+            props.put(Key.DBZ_KAFKA_BOOTSTRAP_SERVERS,readerSliceConfig.getString(Key.KAFKA_BOOTSTRAP_SERVERS));
+            props.put(Key.DBZ_KAFKA_TOPIC,readerSliceConfig.getString(Key.KAFKA_TOPIC));
+
+            io.debezium.config.Configuration config = io.debezium.config.Configuration.from(props);
+
+
+            LOG.error("config.getString(Key.KAFKA_TOPIC): "+config.getString(Key.KAFKA_TOPIC));
+            System.out.print("config.getString(Key.KAFKA_TOPIC): "+config.getString(Key.KAFKA_TOPIC));
+
+
+            System.out.print(JSON.toJSONString(readerSliceConfig));
+
+            LOG.error("JSON.toJSONString(config): "+JSON.toJSONString(readerSliceConfig));
+
+            MySqlTaskContext mySqlTaskContext = new MySqlTaskContext(config);
+
+            SnapshotReader2 snapshotReader = new SnapshotReader2("full-import",mySqlTaskContext);
+
+
+            DBZRecordMarker  dBZRecordMarker =  new DBZRecordMarker(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+
+            snapshotReader.execute(dBZRecordMarker);
+
 
         }
 
@@ -400,7 +473,8 @@ public class CommonRdbmsReader {
             String queryType = readerSliceConfig.getString(Key.QUERY_TYPE);
 
            // if(Key.QUERY_SNAPSHOT_TYPE.equals(queryType)){
-                startSnapShotRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+            startDBZRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
+//                startSnapShotRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
 //            }else{
 //                startJdbcSqlRead(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
 //            }

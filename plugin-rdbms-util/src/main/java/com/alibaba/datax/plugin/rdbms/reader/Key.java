@@ -50,5 +50,51 @@ public final class Key {
 
     public final static String QUERY_SNAPSHOT_TYPE = "snapshot";
 
+    /**
+     *
+     *
+     "name": "inventory-connector2",
+     "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+     "database.hostname": "172.28.3.159",
+     "database.port": "3306",
+     "database.user": "canal",
+     "database.password": "canal",
+     "database.server.id": "23333",
+     "database.server.name": "23333",
+     "database.whitelist": "test",
+     "include.schema.changes": "false",
+     "database.history.kafka.bootstrap.servers": "172.28.3.158:9092",
+     "database.history.kafka.topic":"dbhistory.fullfillment",
+     */
+
+    public final static String NAME = "name";
+    public final static String CONNECTOR_CLASS = "connector_class";
+    public final static String DATABASE_HOST = "database_hostname";
+    public final static String DATABASE_PORT = "database_port";
+    public final static String DATABASE_USER = "database_user";
+    public final static String DATABASE_PASSWORD = "database_password";
+    public final static String DATABASE_SERVER_ID = "database_server_id";
+    public final static String DATABASE_SERVER_NAME = "database_server_name";
+    public final static String DATABASE_WHITELIST = "database_whitelist";
+    public final static String INCLUDE_SCHEMA_CHANGES = "include_schema_changes";
+    public final static String KAFKA_BOOTSTRAP_SERVERS = "database_history_kafka_bootstrap_servers";
+    public final static String KAFKA_TOPIC = "database_history_kafka_topic";
+
+
+    public final static String DBZ_NAME = "name";
+    public final static String DBZ_CONNECTOR_CLASS = "connector.class";
+    public final static String DBZ_DATABASE_HOST = "database.hostname";
+    public final static String DBZ_DATABASE_PORT = "database.port";
+    public final static String DBZ_DATABASE_USER = "database.user";
+    public final static String DBZ_DATABASE_PASSWORD = "database.password";
+    public final static String DBZ_DATABASE_SERVER_ID = "database.server.id";
+    public final static String DBZ_DATABASE_SERVER_NAME = "database.server.name";
+    public final static String DBZ_DATABASE_WHITELIST = "database.whitelist";
+    public final static String DBZ_INCLUDE_SCHEMA_CHANGES = "include.schema.changes";
+    public final static String DBZ_KAFKA_BOOTSTRAP_SERVERS = "database.history.kafka.bootstrap.servers";
+    public final static String DBZ_KAFKA_TOPIC = "database.history.kafka.topic";
+
+
+
 
 }
