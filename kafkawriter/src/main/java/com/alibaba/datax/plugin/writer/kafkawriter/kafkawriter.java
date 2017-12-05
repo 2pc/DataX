@@ -152,7 +152,7 @@ public class KafkaWriter {
             List<Record> writerBuffer = new ArrayList<Record>(this.sendBufferBytes);
             Record record = null;
             while ((record = lineReceiver.getFromReader()) != null) {
-                //System.out.println(record);
+               // System.out.println(record);
                 writerBuffer.add(record);
                 if (writerBuffer.size() >= this.sendBufferBytes) {
                     sendKafka(writerBuffer);

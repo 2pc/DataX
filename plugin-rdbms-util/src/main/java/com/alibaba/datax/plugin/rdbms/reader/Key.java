@@ -66,7 +66,7 @@ public final class Key {
      "database.history.kafka.bootstrap.servers": "172.28.3.158:9092",
      "database.history.kafka.topic":"dbhistory.fullfillment",
      */
-
+    /* datax configuration 层级关系不能用 "."*/
     public final static String NAME = "name";
     public final static String CONNECTOR_CLASS = "connector_class";
     public final static String DATABASE_HOST = "database_hostname";

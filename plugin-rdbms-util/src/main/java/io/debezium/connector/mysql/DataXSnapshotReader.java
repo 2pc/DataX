@@ -37,11 +37,13 @@ import io.debezium.util.Strings;
 import com.alibaba.datax.plugin.rdbms.commons.DBZRecordMarker;
 
 /**
+ * see http://debezium.io/
+ *
  * A component that performs a snapshot of a MySQL server, and records the schema changes in {@link MySqlSchema}.
  *
  * @author Randall Hauch
  */
-public class SnapshotReader2 extends AbstractReader {
+public class DataXSnapshotReader extends AbstractReader {
 
     private boolean minimalBlocking = true;
     private final boolean includeData;
@@ -55,7 +57,7 @@ public class SnapshotReader2 extends AbstractReader {
      * @param name the name of this reader; may not be null
      * @param context the task context in which this reader is running; may not be null
      */
-    public SnapshotReader2(String name, MySqlTaskContext context) {
+    public DataXSnapshotReader(String name, MySqlTaskContext context) {
         super(name, context);
         this.includeData = !context.isSchemaOnlySnapshot();
         recorder = this::recordRowAsRead;
@@ -72,7 +74,7 @@ public class SnapshotReader2 extends AbstractReader {
      *            is to be held for the entire {@link #execute() execution}
      * @return this object for method chaining; never null
      */
-    public SnapshotReader2 useMinimalBlocking(boolean minimalBlocking) {
+    public DataXSnapshotReader useMinimalBlocking(boolean minimalBlocking) {
         this.minimalBlocking = minimalBlocking;
         return this;
     }
@@ -83,7 +85,7 @@ public class SnapshotReader2 extends AbstractReader {
      *
      * @return this object for method chaining; never null
      */
-    public SnapshotReader2 generateReadEvents() {
+    public DataXSnapshotReader generateReadEvents() {
         recorder = this::recordRowAsRead;
         return this;
     }
@@ -94,7 +96,7 @@ public class SnapshotReader2 extends AbstractReader {
      *
      * @return this object for method chaining; never null
      */
-    public SnapshotReader2 generateInsertEvents() {
+    public DataXSnapshotReader generateInsertEvents() {
         recorder = this::recordRowAsInsert;
         return this;
     }
@@ -111,7 +113,7 @@ public class SnapshotReader2 extends AbstractReader {
     @Override
     protected void doStart() {
        // thread = new Thread(this::execute, "mysql-snapshot-" + context.serverName());
-        thread.start();
+       // thread.start();
     }
 
     @Override
@@ -448,31 +450,31 @@ public class SnapshotReader2 extends AbstractReader {
                                         final Object[] row = new Object[numColumns];
 
 
+                                        logger.info("before dbzRecordMarker.genrateRecord ");
+                                        dbzRecordMarker.genrateRecord(rs,rowNum,rowCountStr,tableId,stepNum);
 
-                                        dbzRecordMarker.genrateRecord(rs);
+                                        logger.info("after dbzRecordMarker.genrateRecord ");
 
-
-
-
-                                        while (rs.next()) {
-                                            for (int i = 0, j = 1; i != numColumns; ++i, ++j) {
-                                                row[i] = rs.getObject(j);
-                                            }
-                                            recorder.recordRow(recordMaker, row, ts); // has no row number!
-
-
-
-                                            ++rowNum;
-                                            if (rowNum % 100 == 0 && !isRunning()) {
-                                                // We've stopped running ...
-                                                break;
-                                            }
-                                            if (rowNum % 10_000 == 0) {
-                                                long stop = clock.currentTimeInMillis();
-                                                logger.info("Step {}: - {} of {} rows scanned from table '{}' after {}",
-                                                        stepNum, rowNum, rowCountStr, tableId, Strings.duration(stop - start));
-                                            }
-                                        }
+//                                        while (rs.next()) {
+////                                            for (int i = 0, j = 1; i != numColumns; ++i, ++j) {
+////                                                row[i] = rs.getObject(j);
+////                                            }
+//                                         //   recorder.recordRow(recordMaker, row, ts); // has no row number!
+//
+//
+//
+//                                            ++rowNum;
+//                                            if (rowNum % 100 == 0 && !isRunning()) {
+//                                                // We've stopped running ...
+//                                                break;
+//                                            }
+//
+//                                            if (rowNum % 10_000 == 0) {
+//                                                long stop = clock.currentTimeInMillis();
+//                                                logger.info("Step {}: - {} of {} rows scanned from table '{}' after {}",
+//                                                        stepNum, rowNum, rowCountStr, tableId, Strings.duration(stop - start));
+//                                            }
+//                                        }
 
                                         totalRowCount.addAndGet(rowNum);
                                         if (isRunning()) {
@@ -480,7 +482,7 @@ public class SnapshotReader2 extends AbstractReader {
                                             logger.info("Step {}: - Completed scanning a total of {} rows from table '{}' after {}",
                                                     stepNum, rowNum, tableId, Strings.duration(stop - start));
                                         }
-                                    } catch (InterruptedException e) {
+                                    } catch (Exception e) {
                                         Thread.interrupted();
                                         // We were not able to finish all rows in all tables ...
                                         logger.info("Step {}: Stopping the snapshot due to thread interruption", stepNum);

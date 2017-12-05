@@ -27,7 +27,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 
 import io.debezium.connector.mysql.MySqlTaskContext;
-import io.debezium.connector.mysql.SnapshotReader2;
+import io.debezium.connector.mysql.DataXSnapshotReader;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,13 +207,17 @@ public class CommonRdbmsReader {
             io.debezium.config.Configuration dbzConfig = io.debezium.config.Configuration.from(props);
 
             MySqlTaskContext mySqlTaskContext = new MySqlTaskContext(dbzConfig);
+            mySqlTaskContext.start();
 
-            SnapshotReader2 snapshotReader = new SnapshotReader2("full-import",mySqlTaskContext);
+            DataXSnapshotReader snapshotReader = new DataXSnapshotReader("full-import",mySqlTaskContext);
 
 
-            DBZRecordMarker  dBZRecordMarker =  new DBZRecordMarker(readerSliceConfig,recordSender,taskPluginCollector,fetchSize);
-
+            DBZRecordMarker  dBZRecordMarker =  new DBZRecordMarker(readerSliceConfig,recordSender,
+                    taskPluginCollector,fetchSize,taskGroupId,taskId);
+            snapshotReader.start();
             snapshotReader.execute(dBZRecordMarker);
+
+           // snapshotReader.stop();
 
 
         }

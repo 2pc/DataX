@@ -5,22 +5,22 @@ import com.alibaba.datax.common.exception.DataXException;
 import com.alibaba.datax.common.plugin.RecordSender;
 import com.alibaba.datax.common.plugin.TaskPluginCollector;
 import com.alibaba.datax.common.statistics.PerfRecord;
-import com.alibaba.datax.common.statistics.PerfTrace;
 import com.alibaba.datax.common.util.Configuration;
-import com.alibaba.datax.plugin.rdbms.reader.Key;
-import com.alibaba.datax.plugin.rdbms.reader.TableId;
-import com.alibaba.datax.plugin.rdbms.util.DBUtil;
 import com.alibaba.datax.plugin.rdbms.util.DBUtilErrorCode;
-import com.alibaba.datax.plugin.rdbms.util.RdbmsException;
 import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Types;
+import java.util.concurrent.atomic.AtomicReference;
 
 
 public class DBZRecordMarker {
+
+
+    protected final Logger logger = LoggerFactory.getLogger(DBZRecordMarker.class);
 
     private Configuration readerSliceConfig;
 
@@ -30,79 +30,72 @@ public class DBZRecordMarker {
 
     private int fetchSize;
 
+    private  PerfRecord allResultPerfRecord;
+
+    private int taskGroupId;
+
+    private int taskId;
+
     protected final byte[] EMPTY_CHAR_ARRAY = new byte[0];
 
     public DBZRecordMarker(Configuration readerSliceConfig,
                            RecordSender recordSender,
-                           TaskPluginCollector taskPluginCollector, int fetchSize) {
+                           TaskPluginCollector taskPluginCollector, int fetchSize,int taskGroupId, int taskId) {
 
         this.readerSliceConfig = readerSliceConfig;
         this.recordSender =recordSender;
         this.taskPluginCollector = taskPluginCollector;
         this.fetchSize = fetchSize;
+
+        this.taskGroupId = taskGroupId;
+        this.taskId = taskId;
+
+        allResultPerfRecord = new PerfRecord(taskGroupId, taskId, PerfRecord.PHASE.RESULT_NEXT_ALL);
+        allResultPerfRecord.start();
     }
 
-    public void genrateRecord(ResultSet rs){
+    public void genrateRecord(ResultSet rs, long rowNum, AtomicReference<String> rowCountStr, io.debezium.relational.TableId tableId , int stepNum){
 
-
-//        String querySql = readerSliceConfig.getString(Key.QUERY_SQL);
-//        String table = readerSliceConfig.getString(Key.TABLE);
-//
-//        PerfTrace.getInstance().addTaskDetails(taskId, table + "," + basicMsg);
-//
-//        LOG.info("Begin to read record by Sql: [{}\n] {}.",
-//                querySql, basicMsg);
-//        PerfRecord queryPerfRecord = new PerfRecord(taskGroupId,taskId, PerfRecord.PHASE.SQL_QUERY);
-//        queryPerfRecord.start();
-//
-//        Connection conn = DBUtil.getConnection(this.dataBaseType, jdbcUrl,
-//                username, password);
-//
-//        // session config .etc related
-//        DBUtil.dealWithSessionConfig(conn, readerSliceConfig,
-//                this.dataBaseType, basicMsg);
-//
         int columnNumber = 0;
-//        ResultSet rs = null;
         try {
-//            rs = DBUtil.query(conn, querySql, fetchSize);
-//            queryPerfRecord.end();
-
             ResultSetMetaData metaData = rs.getMetaData();
             columnNumber = metaData.getColumnCount();
 
-//            //这个统计干净的result_Next时间
-//            PerfRecord allResultPerfRecord = new PerfRecord(taskGroupId, taskId, PerfRecord.PHASE.RESULT_NEXT_ALL);
-//            allResultPerfRecord.start();
-
             long rsNextUsedTime = 0;
             long lastTime = System.nanoTime();
-            TableId TableId =null;
             while (rs.next()) {
 
                 rsNextUsedTime += (System.nanoTime() - lastTime);
                 this.transportOneRecordWithSchema(recordSender, rs,
-                        metaData, columnNumber, "utf-8", taskPluginCollector,TableId);
+                        metaData, columnNumber, "utf-8", taskPluginCollector,tableId);
+                rowNum++;
+
+                if (rowNum % 10_000 == 0) {
+                    //long stop = clock.currentTimeInMillis();
+                    logger.info("Step {}: - {} of {} rows scanned from table '{}' ",
+                            stepNum, rowNum, rowCountStr, tableId);
+                }
                 lastTime = System.nanoTime();
             }
 
-//            allResultPerfRecord.end(rsNextUsedTime);
+            allResultPerfRecord.end(rsNextUsedTime);
 //            //目前大盘是依赖这个打印，而之前这个Finish read record是包含了sql查询和result next的全部时间
 //            LOG.info("Finished read record by Sql: [{}\n] {}.",
 //                    querySql, basicMsg);
 
         }catch (Exception e) {
+            logger.warn("full import db: "+tableId.catalog()+" table: "+tableId.table()+ " Exception "+e);
  //           throw RdbmsException.asQueryException(this.dataBaseType, e, querySql, table, username);
         } finally {
- //           DBUtil.closeDBResources(null, conn);
+            logger.info("finally ");
         }
     }
 
     protected Record buildRecordWithSchema(RecordSender recordSender, ResultSet rs, ResultSetMetaData metaData, int columnNumber, String mandatoryEncoding,
-                                           TaskPluginCollector taskPluginCollector, TableId tableId) {
+                                           TaskPluginCollector taskPluginCollector, io.debezium.relational.TableId tableId) {
         Record record = recordSender.createRecord();
-        record.setSchemaName(tableId.getCatalogName());
-        record.setTableName(tableId.getTableName());
+        record.setSchemaName(tableId.catalog());
+        record.setTableName(tableId.table());
 
         try {
             for (int i = 1; i <= columnNumber; i++) {
@@ -213,7 +206,7 @@ public class DBZRecordMarker {
 
     protected Record transportOneRecordWithSchema(RecordSender recordSender, ResultSet rs,
                                                   ResultSetMetaData metaData, int columnNumber, String mandatoryEncoding,
-                                                  TaskPluginCollector taskPluginCollector,TableId tableId) {
+                                                  TaskPluginCollector taskPluginCollector,io.debezium.relational.TableId tableId) {
         Record record = buildRecordWithSchema(recordSender,rs,metaData,columnNumber,mandatoryEncoding,taskPluginCollector,tableId);
         recordSender.sendToWriter(record);
         return record;
