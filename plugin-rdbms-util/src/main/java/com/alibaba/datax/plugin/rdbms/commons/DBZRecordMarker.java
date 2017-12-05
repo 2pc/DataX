@@ -19,9 +19,7 @@ import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Types;
 
-/**
- * Created by luping on 2017/11/27.
- */
+
 public class DBZRecordMarker {
 
     private Configuration readerSliceConfig;

@@ -175,33 +175,22 @@ public class CommonRdbmsReader {
                                   RecordSender recordSender,
                                   TaskPluginCollector taskPluginCollector, int fetchSize){
 
-            LOG.error("readerSliceConfig: "+readerSliceConfig);
-            LOG.error("split_pk: "+readerSliceConfig.get(Key.SPLIT_PK));
-
-
-
-            LOG.error("internalObj.getString(Key.KAFKA_TOPIC): "+readerSliceConfig.getString(Key.KAFKA_TOPIC));
-
-
-            LOG.error("readerSliceConfig.getString(Key.KAFKA_TOPIC): "+readerSliceConfig.getString(Key.KAFKA_TOPIC));
-
-
-
-
             Map<String, String> props = new HashMap<String,String>();
             /*
-            *     public final static String NAME = "name";
-    public final static String CONNECTOR_CLASS = "connector.class";
-    public final static String DATABASE_HOST = "database.hostname";
-    public final static String DATABASE_PORT = "database.port";
-    public final static String DATABASE_USER = "database.user";
-    public final static String DATABASE_PASSWORD = "database.password";
-    public final static String DATABASE_SERVER_ID = "database.server.id";
-    public final static String DATABASE_SERVER_NAME = "database.server.name";
-    public final static String DATABASE_WHITELIST = "database.whitelist";
-    public final static String INCLUDE_SCHEMA_CHANGES = "include.schema.changes";
-    public final static String KAFKA_BOOTSTRAP_SERVERS = "database.history.kafka.bootstrap.servers";
-    public final static String KAFKA_TOPIC = "database.history.kafka.topic";*/
+            *
+                public final static String NAME = "name";
+                public final static String CONNECTOR_CLASS = "connector.class";
+                public final static String DATABASE_HOST = "database.hostname";
+                public final static String DATABASE_PORT = "database.port";
+                public final static String DATABASE_USER = "database.user";
+                public final static String DATABASE_PASSWORD = "database.password";
+                public final static String DATABASE_SERVER_ID = "database.server.id";
+                public final static String DATABASE_SERVER_NAME = "database.server.name";
+                public final static String DATABASE_WHITELIST = "database.whitelist";
+                public final static String INCLUDE_SCHEMA_CHANGES = "include.schema.changes";
+                public final static String KAFKA_BOOTSTRAP_SERVERS = "database.history.kafka.bootstrap.servers";
+                public final static String KAFKA_TOPIC = "database.history.kafka.topic";
+            */
             props.put(Key.NAME,readerSliceConfig.getString(Key.NAME));
             props.put(Key.DBZ_CONNECTOR_CLASS,readerSliceConfig.getString(Key.CONNECTOR_CLASS));
             props.put(Key.DBZ_DATABASE_HOST,readerSliceConfig.getString(Key.DATABASE_HOST));
@@ -215,18 +204,9 @@ public class CommonRdbmsReader {
             props.put(Key.DBZ_KAFKA_BOOTSTRAP_SERVERS,readerSliceConfig.getString(Key.KAFKA_BOOTSTRAP_SERVERS));
             props.put(Key.DBZ_KAFKA_TOPIC,readerSliceConfig.getString(Key.KAFKA_TOPIC));
 
-            io.debezium.config.Configuration config = io.debezium.config.Configuration.from(props);
+            io.debezium.config.Configuration dbzConfig = io.debezium.config.Configuration.from(props);
 
-
-            LOG.error("config.getString(Key.KAFKA_TOPIC): "+config.getString(Key.KAFKA_TOPIC));
-            System.out.print("config.getString(Key.KAFKA_TOPIC): "+config.getString(Key.KAFKA_TOPIC));
-
-
-            System.out.print(JSON.toJSONString(readerSliceConfig));
-
-            LOG.error("JSON.toJSONString(config): "+JSON.toJSONString(readerSliceConfig));
-
-            MySqlTaskContext mySqlTaskContext = new MySqlTaskContext(config);
+            MySqlTaskContext mySqlTaskContext = new MySqlTaskContext(dbzConfig);
 
             SnapshotReader2 snapshotReader = new SnapshotReader2("full-import",mySqlTaskContext);
 
